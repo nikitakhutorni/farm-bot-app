@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FarmBot Web app</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.11.4/chartist.min.css" integrity="sha512-V0+DPzYyLzIiMiWCg3nNdY+NyIiK9bED/T1xNBj08CaIUyK3sXRpB26OUCIzujMevxY9TRJFHQIxTwgzb0jVLg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.11.4/chartist.min.js" integrity="sha512-9rxMbTkN9JcgG5euudGbdIbhFZ7KGyAuVomdQDI9qXfPply9BJh0iqA7E/moLCatH2JD4xBGHwV6ezBkCpnjRQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/farmbot@latest/dist/farmbot_single_file.js"></script>
+</head>
+<body>
+  <header>
+    <h1>FarmBot Web App</h1>
+  </header>
+  <div class="form">
+    <label for="token-input">Please first enter FarmBot API token.</label>
+    <textarea id="token-input" placeholder="Your token"></textarea>
+    <button type="button" onclick="runApp()">
+      Save token
+    </button>
+  </div>
+  <main>
+    <section class="location">
+      <h2>Location</h2>
+      FarmBot is currently at: <span id="location-values"></span>
+    </section>
+    <section class="humidity">
+      <h2>Humidity</h2>
+      This chart shows the humidity sensor readings of the FarmBot.
+      <div class="chart-container">
+        <div id="humidity-chart" class="ct-chart ct-golden-section"></div>
+      </div>
+    </section>
+  </main>
+</body>
+
+<style>
+  body, main, form {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: -apple-system, "Open Sans", sans-serif;
+  }
+
+  main {
+    display: none;
+    max-width: 1000px;
+  }
+
+  section {
+    width: 100%;
+    text-align: left;
+  }
+
+  #token-input {
+    width: 400px;
+  }
+
+  label[for='token-input'], #token-input {
+    display: block;
+  }
+
+  /* Chartist styles*/
+  @media screen and (min-width: 720px) {
+    #humidity-chart {
+      width: 700px;
+    }
+  }
+
+  svg.ct-chart-bar, svg.ct-chart-line {
+    overflow: visible;
+  }
+
+  .ct-label.ct-label.ct-horizontal.ct-end {
+    position: relative;
+    justify-content: flex-end;
+    text-align: right;
+    transform-origin: 100% 0;
+    transform: translate(-100%) rotate(-45deg);
+    white-space: nowrap;
+  }
+</style>
+
+<script>
+  function formatTime(d) {
+		return d.toLocaleString();
+  }
+
+  async function accessApi(endpoint, token) {
+    console.log(`Accessing '${endpoint}' API ..."`);
+    return await fetch("https://my.farm.bot/api/" + endpoint, {
+      method: "GET",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json"
+      }
+    })
+      .then(res => res.json())
+      .catch(err => {
+        console.error(err)
+      })
+  }
+
+  async function extractHumidityReadings(data) {
+    return [
+			...(data
+      .filter(p => p.pin === 59)
+      .map(({created_at, value}) => ({created_at: new Date(created_at), value})))
+      .sort((p1, p2) => p1.created_at - p2.created_at)
+    ].map(p => ({...p, created_at: formatTime(p.created_at)}));
+  }
+
+  async function plotHumidity(data) {
+    console.log(data);
+    new Chartist.Line("#humidity-chart", {
+      labels: data.map(p => p.created_at),
+      series: [data.map(p => p.value)]
+    })
+  }
+
+  function runApp() {
+		const tokenInput = document.getElementById("token-input");
+    const token = tokenInput.value;
+		let bot;
+		try {
+      bot = new fbjs.Farmbot({ token });
+      console.log("Token accepted.")
+      // get rid of form if token works
+      document.querySelector("div.form").style.display = "none";
+      document.querySelector("main").style.display = "flex";
+    } catch (err) {
+			console.error(err);
+      alert("The token you submitted doesn't seem to work. Please try again!");
+			tokenInput.value = "";
+			return;
+    }
+
+    const locationDiv = document.getElementById("location-values");
+
+    bot.connect()
+      .then(() => {
+        console.log("Bot connected.");
+      }).catch((err) => {
+        console.error("Failed to connect.")
+      }).then(() => {
+				accessApi("sensor_readings", token)
+          .then(data => {
+						extractHumidityReadings(data)
+              .then(data => plotHumidity(data))
+          })
+      })
+
+    bot.on("status", (status) => {
+      const {x, y, z} = status.location_data.position;
+      locationDiv.innerText = `x: ${x}, y: ${y}, z: ${z}`;
+    })
+  }
+</script>
+</html>

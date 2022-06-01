@@ -1,0 +1,20 @@
+{
+  "name": "farm-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": ".omit/run.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "farmbot": "^15.0.0",
+    "node-fetch": "^3.2.4"
+  },
+  "devDependencies": {
+    "prettier": "^2.6.2"
+  }
+}
