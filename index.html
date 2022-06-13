@@ -118,9 +118,9 @@
       return [
         ...data
           .filter((p) => p.pin === 59)
-          .map(({ created_at, value }) => ({
-            created_at: new Date(created_at),
-            value,
+          .map((p) => ({
+            ...p,
+            created_at: new Date(p.created_at),
           }))
           .sort((p1, p2) => p1.created_at - p2.created_at),
       ].map((p) => ({ ...p, created_at: formatTime(p.created_at) }));
